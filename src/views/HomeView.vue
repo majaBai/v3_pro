@@ -46,12 +46,14 @@
 </template>
 
 <script setup>
-import { onMounted, reactive } from "vue";
+import { onMounted, reactive,getCurrentInstance } from "vue";
 import { useRouter } from "vue-router";
 import SingleTodo  from '../components/SingleTodo.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia';
 // import { toRefs } from 'vue';
+
+const { proxy } = getCurrentInstance() // proxy 相当于 this，可以获取APP全局注入的属性方法
 
 import useStore from '../stores/index';
 const { todoStore } = useStore()
@@ -168,6 +170,9 @@ const seeDetail = (item) => {
     });
 }
 onMounted(() => {
+    // console.log('proxy.$api', proxy.$api)
+    proxy.$api.getTodoList('google.com').then(res => console.log('put', res))
+
     let tl = JSON.parse(localStorage.getItem('todoList'))
     tl?.sort((a, b) => a.state - b.state)
     console.log('mouted', tl)

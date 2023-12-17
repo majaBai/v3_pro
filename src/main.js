@@ -8,10 +8,14 @@ import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
+import api from './api'
+
 import App from './App.vue'
 import router from './router'
 
 const app = createApp(App)
+
+app.config.globalProperties.$api = api // 全局注入api
 
 const store = createPinia()
 store.use(piniaPluginPersistedstate)
