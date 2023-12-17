@@ -1,15 +1,15 @@
 <template>
     <div class="home-page">
         <div  class="todo-list">
-            <div v-if="!state.todoList.length">还没有代办事件，请添加</div>
+            <div v-if="!todoList?.length">还没有代办事件，请添加</div>
             <div v-else>
                 <SingleTodo 
-                v-for="(item, idx) in state.todoList" 
+                v-for="item in todoList" 
                 :key="item.id" 
                 :todo="item"
                 @editTodo="edit(item)"
-                @finishTodo="finish(idx)"
-                @deleteTodo="delTodo(idx)"
+                @finishTodo="finish(item.id)"
+                @deleteTodo="delTodo(item.id)"
                 @click="seeDetail(item)"
                 />
             </div>
@@ -36,7 +36,7 @@
             <template #footer>
             <span class="dialog-footer">
                 <el-button @click="state.dialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="state.dialogVisible = false">
+                <el-button type="primary" @click="confirmAdd">
                 确定
                 </el-button>
             </span>
@@ -50,17 +50,27 @@ import { onMounted, reactive } from "vue";
 import { useRouter } from "vue-router";
 import SingleTodo  from '../components/SingleTodo.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { storeToRefs } from 'pinia';
+// import { toRefs } from 'vue';
 
+import useStore from '../stores/index';
+const { todoStore } = useStore()
+
+const { todoList } = storeToRefs(todoStore)
+
+console.log('todlist---', todoStore, todoList)
 const router = useRouter()
 
+
 const state = reactive({
-    todoList:[],
+    // todoList:[],
     dialogVisible:false,
     form:{
         title:'',
         content: '',
         id: null,
-    }
+    },
+    editedTodo: {},
 })
 const closeDialog = () => {
     clearForm()
@@ -68,6 +78,7 @@ const closeDialog = () => {
 const clearForm = () => {
     state.form.title = ''
     state.form.content = ''
+    state.form.id = null
 }
 const fillForm = (t, c, id) => {
     state.form = {
@@ -75,19 +86,51 @@ const fillForm = (t, c, id) => {
         content: c,
         id
     }
-    
 }
 const edit = (item) => {
     clearForm()
     state.dialogVisible = true
     fillForm(item.title, item.content, item.id)
-    console.log( state.form )
+}
 
+const confirmAdd = () => {
+    let temp = todoList.value
+    console.log('add', temp.length)
+    if(state.form.id != null) {
+        // 编辑
+        let id = state.form.id
+        let idx = temp.findIndex(item => item.id == id)
+        temp[idx].title = state.form.title
+        temp[idx].content = state.form.content
+    } else {
+        let t = {
+            title: state.form.title,
+            content: state.form.content,
+            state: 0,
+            id: state.form.title + temp.length,
+        }
+        if(temp) {
+            temp.unshift(t)
+        } else {
+            temp = [t]
+        }
+    }
+    todoStore.$patch({
+        todoList: temp
+    })
+    state.dialogVisible = false
+    clearForm()
 }
-const finish = (idx) => {
-    state.todoList[idx].state = 1
+const finish = (id) => {
+    console.log('finish', id)
+    let temp = todoList.value
+    let idx = temp.findIndex(item => item.id == id)
+    temp[idx].state = 1
+    todoStore.$patch({
+        todoList: temp
+    })
 }
-const delTodo = (idx) => {
+const delTodo = (id) => {
     ElMessageBox.confirm(
     '确定删除?',
     '提示',
@@ -98,21 +141,26 @@ const delTodo = (idx) => {
     }
   )
     .then(() => {
-    state.todoList.splice(idx, 1)
+    let temp = todoList.value
+    let idx = temp.findIndex(item => item.id == id) 
+    temp.splice(idx, 1)
+    console.log('del: id idx', id, idx, temp)
+
+    todoStore.$patch({
+        todoList: temp
+    })
     ElMessage({
         type: 'success',
         message: '已删除',
       })
     })
-    .catch(() => {
-    //   ElMessage({
-    //     type: 'info',
-    //     message: 'Delete canceled',
-    //   })
+    .catch((err) => {
+        console.log('del todo**', err)
     })
 }
 const seeDetail = (item) => {
     router.push({
+        // path:`/detail/${item.id}`
     name: "detail",
     query: {
         id: item.id,
@@ -120,20 +168,14 @@ const seeDetail = (item) => {
     });
 }
 onMounted(() => {
-    state.todoList = [
-        {
-            title:'阅读',
-            state: 0, // 0 未完成，1 已完成
-            id: 1,
-            content: 'xfsdfsdf'
-        },
-        {
-            title:'阅读1',
-            state: 1, // 0 未完成，1 已完成
-            id: 2,
-            content: 'sdfsdf'
-        },
-    ]
+    let tl = JSON.parse(localStorage.getItem('todoList'))
+    tl?.sort((a, b) => a.state - b.state)
+    console.log('mouted', tl)
+    if(tl?.length){
+        todoStore.$patch({
+        todoList: tl
+    })
+    }
 })
 </script>
 
